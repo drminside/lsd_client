@@ -13,7 +13,7 @@ Dependency: pytz(MIT license), jsonschema(MIT)
 Prerequisites: epub files with LSD links provided by target LCP server(The Server must provide also LSDs associated with epub files)
 Detail: This script is used for verifying if a LSD server is compliant with LSD v1.0 specification
     Usage
-     $ python lsd_client.py -i %interaction_name -d %device_id -n %device_name $epub_file_name
+     $ python lsd_client.py -i %interaction_name -d %device_id -n %device_name -e %end_date $epub_file_name 
        %interaction_name : which is one of following ones
          - fetch : fetch LSD from the server whose address is specified in the $epub_file_name
          - fetch_license : fetch License Document from the server whose address is specified in the LSD linked in $epub_file_name
@@ -22,6 +22,7 @@ Detail: This script is used for verifying if a LSD server is compliant with LSD 
          - return : request 'return' interaction to the server whose address is specified in the $epub_file_name         -
        %device_id : device id
        %device_name : device name
+       %end_date : expired date
        %epub_file_name : specific epub_file which is provided by server to test an LSD interaction
 """
 
@@ -50,7 +51,7 @@ exceptions = importlib.import_module(name='jsonschema').exceptions
 def request_license_document(status_document):
     """
     Args:
-        status_document (dict): A LSD with url information for request License Document
+        status_document (dict): A LSD with link url for License Document
 
     Returns:
         str: Message that based on http status code.
@@ -72,7 +73,7 @@ def request_license_document(status_document):
 def do_register(license_document, device_id, device_name):
     """
     Args:
-        license_document (dict): A License Document with url information for LSD.
+        license_document (dict): A License Document with link url for LSD.
         device_id (str): Device ID
         device_name (str): Device name
 
@@ -93,7 +94,7 @@ def do_register(license_document, device_id, device_name):
 def request_register(status_document, device_id, device_name):
     """
     Args:
-        status_document (dict): A LSD with url information for request License Document
+        status_document (dict): A LSD with link url for License Document
         device_id (str): Device ID
         device_name (str): Device name
 
@@ -118,8 +119,8 @@ def eval_register_result(http_code, old_status_document, response_value):
     """
     Args:
         http_code (int): Http status code for server response after "request register".
-        old_status_document (dict): A LSD which contains a status before  "request register".
-        response_value (dict): The given value from server that after task of "request register". It is status document when http_code is 200, or error message If http_code has another value.
+        old_status_document (dict): Current Status Document before doing "request register".
+        response_value (dict): Response message which is status document when http_code is 200, or error message.
 
     Returns:
         str: Evaluation result message. This message describe followings, server did normally process about request, license, and status document from server are correctly renewal.
@@ -142,8 +143,8 @@ def eval_register_result(http_code, old_status_document, response_value):
 def do_renew(license_document, end_date, device_id, device_name):
     """
     Args:
-        license_document (dict): Dictionary object, contains license document from epub file.
-        end_date (str): License expired date, you want renewal.
+        license_document (dict): License Document.
+        end_date (str): License expired date requested by client.
         device_id (str): Device ID
         device_name (str): Device name
 
@@ -175,14 +176,14 @@ def do_renew(license_document, end_date, device_id, device_name):
 def request_renew(status_document, end_date, device_id, device_name):
     """
     Args:
-        status_document (dict): Dictionary object, contains status document information.
-        end_date (str): License expired date, you want renewal.
+        status_document (dict): Status Document
+        end_date (str): License expired date requested by client.
         device_id (str): Device ID
         device_name (str): Device name
 
     Returns:
         int: Http status code about server response
-        str: Server response message. It has different value(status document or error message) by http status code.
+        str: Server response message which is Status Document or error message
     """
     if end_date is None:
         raise RuntimeError("end_date is None")
@@ -210,10 +211,10 @@ def eval_renew_result(http_code, response_value, old_status_document, new_licens
     Args:
         http_code (int): http status code about "request renew".
         response_value (dict): Response value, either new status document or error message structed json.
-        old_status_document (dict): Status document received from server, before task of "request renew".
-        new_license_document (dict): New license document received from server.
-        old_license_document (dict): License document from epub file, before task of "request renew".
-        new_end_date (str): Newly expired date of license, written by user.
+        old_status_document (dict): Current Status Document before doing "request renew".
+        new_license_document (dict): Updated License Document after doing "request renew".
+        old_license_document (dict): Old License document from epub file
+        new_end_date (str): Newly expired date of license requested by client.
 
     Returns:
         str: Result message that describe correctly done of process or not, and new license document and status document is correctly renewal.
@@ -246,7 +247,7 @@ def eval_renew_result(http_code, response_value, old_status_document, new_licens
 def do_return(license_document, device_id, device_name):
     """
     Args:
-        license_document (dict): Dictionary object, contains license document information.
+        license_document (dict): License Document
         device_id (str): Device ID
         device_name (str): Device name
 
@@ -272,13 +273,13 @@ def do_return(license_document, device_id, device_name):
 def request_return(status_document, device_id, device_name):
     """
     Args:
-        status_document (dict): Dictionary object, contains status document information
+        status_document (dict): Status Document
         device_id (str): Device ID
         device_name (str): Device name
 
     Returns:
         int: http status code about server response.
-        str: Server response value. It has different value(status document or error message) by http status code.
+        str: Server response value which is status document or error message.
     """
     return_link = generate_query(status_document['links']['return']['href'],
                                  device_id=device_id, device_name=device_name)
@@ -296,9 +297,9 @@ def eval_return_result(http_code, response_value, old_status_document, new_licen
     Args:
         http_code (int): Http status code about "request return".
         response_value (dict): Received message from server after "request return". It will be status document or error message.
-        old_status_document (dict): Status document that received before task of "request return" from server.
-        new_license_document (dict): License document that received after task of "request return" from server.
-        old_license_document (dict): License document that takes in epub file.
+        old_status_document (dict): Current Status Document before doing "request return"
+        new_license_document (dict): Updated License Document after doing "request return"
+        old_license_document (dict): Old License Document in epub file.
 
     Returns:
         str: Result message that describe correctly done of process or not, and new license document and status document is correctly renewal.
@@ -334,10 +335,10 @@ def eval_return_result(http_code, response_value, old_status_document, new_licen
 def convert_time_to_utc(time_in_timezone):
     """
     Args:
-        time_in_timezone (str): Formed string value of datetime by ISO 8601 standards.
+        time_in_timezone (str): datetime in ISO 8601 format
 
     Returns:
-        datetime: Changed datetime object from timezone in UTC.
+        datetime: Converted datetime with timezone in UTC.
     """
     if time_in_timezone.find('Z') > 0:
         return datetime.strptime(time_in_timezone, "%Y-%m-%dT%H:%M:%SZ")
@@ -368,7 +369,7 @@ def parse_arguments():
             env['instruction'] = sys.argv[idx + 1]
         elif sys.argv[idx] == '-d':
             env['dev_id'] = sys.argv[idx + 1]
-        elif sys.argv[idx] == '-end':
+        elif sys.argv[idx] == '-e':
             env['end_date'] = sys.argv[idx + 1]
         elif sys.argv[idx] == '-n':
             env['dev_name'] = sys.argv[idx + 1]
@@ -379,10 +380,10 @@ def parse_arguments():
 def get_license_document(epub_file_name):
     """
     Args:
-        epub_file_name (str): Name or path of Epub file that has license document(license.lcpl).
+        epub_file_name (str): Name or path of Epub file that has License Document(license.lcpl).
 
     Returns:
-        dict: Dictionary object of license document from epub file
+        dict: License Document from epub file
     """
     try:
         path = os.path.join(os.getcwd(), epub_file_name)
@@ -396,12 +397,12 @@ def get_license_document(epub_file_name):
 def get_status_document(license_document, device_id, device_name):
     """
     Args:
-        license_document (dict): License document, has url of status document associated by license id.
+        license_document (dict): License document with link url for status document.
         device_id (str): Device ID
         device_name (str): Device name
 
     Returns:
-        dict: Dictionary object of status document from server.
+        dict: Status document fetched from server.
     """
     status_link = license_document['links']['status']['href']
     status_link = status_link + "?id=" + device_id + "&name=" + device_name
@@ -483,7 +484,7 @@ def run_test():
         print("-i Interaction [fetch|fetch_license|register|renew|return]")
         print("-d Device id")
         print("-n Device name")
-        print("-end ISO8601 end date")
+        print("-e ISO8601 end date")
 
     args = parse_arguments()
 
