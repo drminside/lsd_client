@@ -7,18 +7,19 @@ version: 1.0
 History
     Created by Ahram Oh(aroh@drminside.com) on 06.27.2016 v0.1
     Updated by Ahram Oh(aroh@drminside.com) on 09.08.2016 v1.0
-Tools: PyCharm 2016.2.2 (JetBrain, IDE)
-Dependency: pytz
+Files: lsd_client.py(Script file for test), json_schema_lsd.json(For check validation of Status document)
+Tools: Python 3.5.2(Python software Foundation, Interpreter), PyCharm 2016.2.2 (JetBrain, IDE)
+Dependency: pytz(MIT license), jsonschema(MIT)
 Prerequisites: epub files with LSD links provided by target LCP server(The Server must provide also LSDs associated with epub files)
-Detail: This script is used for verifyin if a LSD server is compliant with LSD v1.0 specification 
+Detail: This script is used for verifying if a LSD server is compliant with LSD v1.0 specification
     Usage
      $ python lsd_client.py -i %interaction_name -d %device_id -n %device_name $epub_file_name
        %interaction_name : which is one of following ones
          - fetch : fetch LSD from the server whose address is specified in the $epub_file_name
          - fetch_license : fetch License Document from the server whose address is specified in the LSD linked in $epub_file_name
-         - register : request 'register' interarction to the server whose address is specified in the $epub_file_name
-         - renew : reqeust 'renew' interaction to the server whose address is specified in the $epub_file_name
-         - return : reqeust 'return' interaction to the server whose address is specified in the $epub_file_name         - 
+         - register : request 'register' interaction to the server whose address is specified in the $epub_file_name
+         - renew : request 'renew' interaction to the server whose address is specified in the $epub_file_name
+         - return : request 'return' interaction to the server whose address is specified in the $epub_file_name         -
        %device_id : device id
        %device_name : device name
        %epub_file_name : specific epub_file which is provided by server to test an LSD interaction
@@ -40,7 +41,10 @@ if importlib.util.find_spec('pytz') is None:
     pip.main(['install', 'pytz'])
 timezone = importlib.import_module(name='pytz').timezone
 
-dev_name = "devComputer"
+if importlib.util.find_spec('jsonschema') is None:
+    pip.main(['install', 'jsonschema'])
+json_validate = importlib.import_module(name='jsonschema').validate
+exceptions = importlib.import_module(name='jsonschema').exceptions
 
 
 def request_license_document(status_document):
@@ -60,10 +64,7 @@ def request_license_document(status_document):
         conn.request('GET', url[2])
 
         with conn.getresponse() as result:
-            if result.status == 200:
-                return "Server response is 200", result.read().decode()
-            else:
-                return "Server response error", ""
+            return result.read().decode()
     except Exception as e:
         return "Function: get_status\nMessage: " + '\n'.join(traceback.format_exception(Exception, e, None)), ""
 
@@ -81,12 +82,12 @@ def do_register(license_document, device_id, device_name):
     try:
         status_document = get_status_document(license_document, device_id, device_name)
         if status_document['status'] != 'ready':
-            return "do_register: License is not ready."
+            return "do_register: Status is " + status_document['status']
 
         code, response_data = request_register(status_document, device_id, device_name)
         return eval_register_result(code, status_document, json.loads(response_data))
     except Exception as e:
-        return "Function: get_status\nMessage: " + '\n'.join(traceback.format_exception(Exception, e, None))
+        return "Function: do_register\nMessage: " + '\n'.join(traceback.format_exception(Exception, e, None))
 
 
 def request_register(status_document, device_id, device_name):
@@ -160,7 +161,7 @@ def do_renew(license_document, end_date, device_id, device_name):
         json_resp_data = json.loads(result)
 
         if 'status' in json_resp_data.keys():
-            _, new_lic_str = request_license_document(json_resp_data)
+            new_lic_str = request_license_document(json_resp_data)
             new_license = json.loads(new_lic_str)
         else:
             new_license = ""
@@ -168,7 +169,7 @@ def do_renew(license_document, end_date, device_id, device_name):
         return eval_renew_result(http_code, json_resp_data, status_document, new_license, license_document, end_date)
 
     except Exception as e:
-        return "Function: get_status\nMessage: " + '\n'.join(traceback.format_exception(Exception, e, None))
+        return "Function: do_renew\nMessage: " + '\n'.join(traceback.format_exception(Exception, e, None))
 
 
 def request_renew(status_document, end_date, device_id, device_name):
@@ -253,19 +254,19 @@ def do_return(license_document, device_id, device_name):
         str: Message of evaluation result about "request return".
     """
     try:
-        status = get_status_document(license_document, device_id, device_name)
-        http_code, result = request_return(status, device_id, device_name)
+        status_document = get_status_document(license_document, device_id, device_name)
+        http_code, result = request_return(status_document, device_id, device_name)
         json_resp_data = json.loads(result)
 
         if 'status' in json_resp_data.keys():
-            _, new_lic_str = request_license_document(json_resp_data)
+            new_lic_str = request_license_document(json_resp_data)
             new_license = json.loads(new_lic_str)
         else:
             new_license = dict()
 
-        return eval_return_result(http_code, json_resp_data, status, new_license, license_document)
+        return eval_return_result(http_code, json_resp_data, status_document, new_license, license_document)
     except Exception as e:
-        return "Function: get_status\nMessage: " + '\n'.join(traceback.format_exception(Exception, e, None))
+        return "Function: do_return\nMessage: " + '\n'.join(traceback.format_exception(Exception, e, None))
 
 
 def request_return(status_document, device_id, device_name):
@@ -321,7 +322,7 @@ def eval_return_result(http_code, response_value, old_status_document, new_licen
         old_updated_status_status = convert_time_to_utc(old_status_document['updated']['status'])
         new_updated_status_status = convert_time_to_utc(response_value['updated']['status'])
         if old_updated_status_status >= new_updated_status_status:
-            return "Timestamp about license updated is not updated"
+            return "Timestamp about status updated is not updated"
 
         return "Server response is 200"
     elif http_code >= 400 or http_code < 600:
@@ -353,24 +354,25 @@ def convert_time_to_utc(time_in_timezone):
             return new_time - tz_delta
 
 
-def init_client():
+def parse_arguments():
     """
     Returns:
         dict: System argument values -- epub_file, dev_id, instruction, end_date.
     """
-    epub_file = sys.argv[-1]
-    argv_instruction = str()
-    argv_dev_id = str()
-    argv_end_date = str()
+
+    env = dict()
+    env['epub_file'] = sys.argv[-1]
+
     for idx in range(len(sys.argv)):
         if sys.argv[idx] == '-i':
-            argv_instruction = sys.argv[idx + 1]
-        if sys.argv[idx] == '-d':
-            argv_dev_id = sys.argv[idx + 1]
-        if sys.argv[idx] == '-end':
-            argv_end_date = sys.argv[idx + 1]
+            env['instruction'] = sys.argv[idx + 1]
+        elif sys.argv[idx] == '-d':
+            env['dev_id'] = sys.argv[idx + 1]
+        elif sys.argv[idx] == '-end':
+            env['end_date'] = sys.argv[idx + 1]
+        elif sys.argv[idx] == '-n':
+            env['dev_name'] = sys.argv[idx + 1]
 
-    env = {"epub_file": epub_file, "dev_id": argv_dev_id, "instruction": argv_instruction, "end_date": argv_end_date}
     return env
 
 
@@ -388,7 +390,7 @@ def get_license_document(epub_file_name):
             with zf.open('META-INF/license.lcpl') as license_document:
                 return json.loads(license_document.read().decode(encoding='utf-8'))
     except Exception as e:
-        return {"Function": "get_license", "Message": '\n'.join(traceback.format_exception(Exception, e, None))}
+        return {"Function": "get_license_document", "Message": '\n'.join(traceback.format_exception(Exception, e, None))}
 
 
 def get_status_document(license_document, device_id, device_name):
@@ -415,7 +417,7 @@ def get_status_document(license_document, device_id, device_name):
         with conn.getresponse() as result:
             return json.loads(result.read().decode())
     except Exception as e:
-        return {"Function": "get_status", "Message": '\n'.join(traceback.format_exception(Exception, e, None))}
+        return {"Function": "get_status_document", "Message": '\n'.join(traceback.format_exception(Exception, e, None))}
 
 
 def fetch_status(status_document):
@@ -428,32 +430,15 @@ def fetch_status(status_document):
         str: Result message of syntax check.
         bool: True or False by check result.
     """
-    root = ['id', 'status', 'links', 'updated']
-    links = ['license', 'register', 'return', 'renew']
-    updated = ['license', 'status']
+    try:
+        with open('json_schema_lsd.json') as schema_file:
+            json_schema = json.loads(schema_file.read())
+            res = json_validate(status_document, json_schema)
 
-    for k in status_document:
-        if k not in root:
-            return 'Syntax is incorrect.', False
+            return 'Syntax is correct.', True
+    except exceptions.ValidationError:
+        return 'Syntax is invalid.', False
 
-    for k in status_document['links']:
-        if k not in links:
-            return 'Syntax is incorrect.', False
-
-    for k in status_document['updated']:
-        if k not in updated:
-            return 'Syntax is incorrect.', False
-
-    if 'href' not in status_document['links']['license']:
-        return 'Syntax is incorrect.', False
-    if 'href' not in status_document['links']['register']:
-        return 'Syntax is incorrect.', False
-    if 'href' not in status_document['links']['return']:
-        return 'Syntax is incorrect.', False
-    if 'href' not in status_document['links']['renew'][1]:
-        return 'Syntax is incorrect.', False
-
-    return 'Syntax is correct.', True
 
 
 def generate_query(template_url, device_id=None, device_name=None, end_date=None):
@@ -488,31 +473,30 @@ def generate_query(template_url, device_id=None, device_name=None, end_date=None
     return template_url.replace(template_query, query_str[:-1])
 
 
-def lsd_test_client():
+def run_test():
     """
 
     """
-
     def usage():
-        print("Usage: lsd_client.py [-option] [value] epub_file")
+        print("Usage: lsd_client.py [-option] [value] [Filename].epub")
         print("[option]")
-        print("-i interaction {fetch|fetch_license|activation|renew|return}")
-        print("-d device id")
-        print("-n device name")
+        print("-i Interaction [fetch|fetch_license|register|renew|return]")
+        print("-d Device id")
+        print("-n Device name")
         print("-end ISO8601 end date")
 
-    if len(sys.argv) < 5:
+    args = parse_arguments()
+
+    if len(args) is not 4 and len(args) is not 5:
         usage()
         exit()
-
-    args = init_client()
 
     license_document = get_license_document(args["epub_file"])
     if 'Function' in license_document.keys():
         print('Function: ' + license_document['Function'])
         print('Message: ' + license_document['Message'])
         exit()
-    status_document = get_status_document(license_document, args["dev_id"], dev_name)
+    status_document = get_status_document(license_document, args["dev_id"], args["dev_name"])
     if 'status' not in status_document.keys():
         print('Function: ' + status_document['Function'])
         print('Message: ' + status_document['Message'])
@@ -521,21 +505,22 @@ def lsd_test_client():
 
     if args["instruction"] == 'register':
         if valid:
-            res += '\n' + do_register(license_document, args["dev_id"], dev_name)
+            res += '\n' + do_register(license_document, args["dev_id"], args["dev_name"])
     elif args["instruction"] == 'renew':
         if valid:
-            res += '\nregister: ' + do_register(license_document, args["dev_id"], dev_name) + ' register for renew'
-            res += '\n' + do_renew(license_document, args["end_date"], args["dev_id"], dev_name)
+            res += '\nregister: ' + do_register(license_document, args["dev_id"], args["dev_name"])
+            res += '\n' + do_renew(license_document, args["end_date"], args["dev_id"], args["dev_name"])
     elif args["instruction"] == 'return':
         if valid:
-            res += '\nActivation: ' + do_register(license_document, args["dev_id"], dev_name) + ' register for return'
-            res += '\n' + do_return(license_document, args["dev_id"], dev_name)
-    elif args["instruction"] == 'license':
+            res += '\nregister: ' + do_register(license_document, args["dev_id"], args["dev_name"])
+            res += '\n' + do_return(license_document, args["dev_id"], args["dev_name"])
+    elif args["instruction"] == 'fetch_license':
         if valid:
-            msg, l = request_license_document(status_document)
-            res += '\nLicense request: ' + msg
+            l = request_license_document(status_document)
+            print(json.dumps(l, indent=4))
     elif args["instruction"] == 'fetch':
         if valid:
+            print(json.dumps(status_document, indent=4))
             res += '\nStatus is ' + status_document['status']
     else:
         res = ""
@@ -545,4 +530,4 @@ def lsd_test_client():
 
 
 if __name__ == "__main__":
-    lsd_test_client()
+    run_test()
