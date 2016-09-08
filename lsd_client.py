@@ -12,12 +12,14 @@ Dependency: pytz
 Prerequisites: epub files with LSD links provided by target LCP server(The Server must provide also LSDs associated with epub files)
 Detail: This script is used for verifyin if a LSD server is compliant with LSD v1.0 specification 
     Usage
-     $ python lsd_client.py -i %interaction_name [-d %device_name] $epub_file_name
+     $ python lsd_client.py -i %interaction_name -d %device_id -n %device_name $epub_file_name
        %interaction_name : which is one of following ones
          - fetch : fetch LSD from the server whose address is specified in the $epub_file_name
+         - fetch_license : fetch License Document from the server whose address is specified in the LSD linked in $epub_file_name
          - register : request 'register' interarction to the server whose address is specified in the $epub_file_name
          - renew : reqeust 'renew' interaction to the server whose address is specified in the $epub_file_name
-         - return : reqeust 'return' interaction to the server whose address is specified in the $epub_file_name
+         - return : reqeust 'return' interaction to the server whose address is specified in the $epub_file_name         - 
+       %device_id : device id
        %device_name : device name
        %epub_file_name : specific epub_file which is provided by server to test an LSD interaction
 """
@@ -494,9 +496,10 @@ def lsd_test_client():
     def usage():
         print("Usage: lsd_client.py [-option] [value] epub_file")
         print("[option]")
-        print("-i instruction {'fetch'|'activation'|'renew'|'return'}")
+        print("-i interaction {fetch|fetch_license|activation|renew|return}")
         print("-d device id")
-        print("-end end date when it used renew instruction. ISO8601 format")
+        print("-n device name")
+        print("-end ISO8601 end date")
 
     if len(sys.argv) < 5:
         usage()
