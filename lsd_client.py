@@ -34,6 +34,8 @@ import os
 import json
 import http.client
 
+import time
+
 from urllib.parse import urlparse, quote
 from datetime import datetime, timedelta
 from zipfile import ZipFile
@@ -157,6 +159,8 @@ def do_renew(license_document, end_date, device_id, device_name):
             return "do_renew: License is not registration."
         # check validation using exception handler
         convert_time_to_utc(end_date)
+        # Need to wait for different timestamp between old status document(//updated/status/) and new one(same path)
+        time.sleep(1)
 
         http_code, result = request_renew(status_document, end_date, device_id=device_id, device_name=device_name)
         json_resp_data = json.loads(result)
@@ -256,6 +260,10 @@ def do_return(license_document, device_id, device_name):
     """
     try:
         status_document = get_status_document(license_document, device_id, device_name)
+
+        # Need to wait for different timestamp between old status document(//updated/status/) and new one(same path)
+        time.sleep(1)
+
         http_code, result = request_return(status_document, device_id, device_name)
         json_resp_data = json.loads(result)
 
