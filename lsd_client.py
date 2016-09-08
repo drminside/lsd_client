@@ -1,21 +1,27 @@
 # -*- coding: utf-8 -*-
 
 """
-Name: LSD Virtual client for server test
+Name: Compliance Test LSD Client for LSD server test
 File Name: lsd_client.py
 version: 1.0
 History
-    Created by Ahram Oh(aroh@drminside.com) in 06.27.2016 v0.1
-    Update script reference by LSD specification by Ahram Oh(aroh@drminside.com) in 09.08.2016 v1.0
+    Created by Ahram Oh(aroh@drminside.com) on 06.27.2016 v0.1
+    Updated by Ahram Oh(aroh@drminside.com) on 09.08.2016 v1.0
 Tools: PyCharm 2016.2.2 (JetBrain, IDE)
 Dependency: pytz
-Prerequisites: epub files that makes by LCP server with LSD (Server must have status document associated by epub files)
-Detail: LSD Virtual client for server test is test script for LCP server with LSD.
+Prerequisites: epub files with LSD links provided by target LCP server(The Server must provide also LSDs associated with epub files)
+Detail: This script is used for verifyin if a LSD server is compliant with LSD v1.0 specification 
     Usage
-    1. Create test material from server. This test material must be inserted in database with device id and device name.
-    2. In this script, change the "dev_name" variable to device name on step 1.
-    2. Type command. e.g. $ python lsd_client.py -i register -d devtest test.epub
-    3. You can see test result text in terminal.
+     $ python lsd_client.py -i %interaction_name -d %device_id -n %device_name $epub_file_name
+       %interaction_name : which is one of following ones
+         - fetch : fetch LSD from the server whose address is specified in the $epub_file_name
+         - fetch_license : fetch License Document from the server whose address is specified in the LSD linked in $epub_file_name
+         - register : request 'register' interarction to the server whose address is specified in the $epub_file_name
+         - renew : reqeust 'renew' interaction to the server whose address is specified in the $epub_file_name
+         - return : reqeust 'return' interaction to the server whose address is specified in the $epub_file_name         - 
+       %device_id : device id
+       %device_name : device name
+       %epub_file_name : specific epub_file which is provided by server to test an LSD interaction
 """
 
 import traceback
@@ -40,11 +46,11 @@ dev_name = "devComputer"
 def request_license_document(status_document):
     """
     Args:
-        status_document (dict): It has url information for request license document to server.
+        status_document (dict): A LSD with url information for request License Document
 
     Returns:
         str: Message that based on http status code.
-        str: License document that received from server.
+        str: License Document that received from server.
     """
     try:
         license_link = status_document['links']['license']['href']
@@ -65,12 +71,12 @@ def request_license_document(status_document):
 def do_register(license_document, device_id, device_name):
     """
     Args:
-        license_document (dict): Dictionary object that has license document information from epub file, It extracted before task of "request register".
+        license_document (dict): A License Document with url information for LSD.
         device_id (str): Device ID
         device_name (str): Device name
 
     Returns:
-        str: Message of evaluation result about "request register".
+        str: Result message for "request register" interaction.
     """
     try:
         status_document = get_status_document(license_document, device_id, device_name)
@@ -86,13 +92,13 @@ def do_register(license_document, device_id, device_name):
 def request_register(status_document, device_id, device_name):
     """
     Args:
-        status_document (dict): Dictionary object that has status document information from server. It received before task of "request register".
+        status_document (dict): A LSD with url information for request License Document
         device_id (str): Device ID
         device_name (str): Device name
 
     Returns:
-        int: Http status code about server response.
-        str: Server response value. It has different value(status document or error message) by http status code.
+        int: Http status code for server response.
+        str: Server response value such as error message.
     """
     if device_id is None or device_name is None:
         raise RuntimeError
@@ -110,8 +116,8 @@ def request_register(status_document, device_id, device_name):
 def eval_register_result(http_code, old_status_document, response_value):
     """
     Args:
-        http_code (int): Http status code about server response in "request register".
-        old_status_document (dict): Status document object it received from server when before task of "request register".
+        http_code (int): Http status code for server response after "request register".
+        old_status_document (dict): A LSD which contains a status before  "request register".
         response_value (dict): The given value from server that after task of "request register". It is status document when http_code is 200, or error message If http_code has another value.
 
     Returns:
@@ -490,9 +496,10 @@ def lsd_test_client():
     def usage():
         print("Usage: lsd_client.py [-option] [value] epub_file")
         print("[option]")
-        print("-i instruction {'fetch'|'activation'|'renew'|'return'}")
+        print("-i interaction {fetch|fetch_license|activation|renew|return}")
         print("-d device id")
-        print("-end end date when it used renew instruction. ISO8601 format")
+        print("-n device name")
+        print("-end ISO8601 end date")
 
     if len(sys.argv) < 5:
         usage()
