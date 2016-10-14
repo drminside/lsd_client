@@ -27,6 +27,7 @@ Detail: This script is used for verifying if a LSD server is compliant with LSD 
 """
 
 import traceback
+
 import pip
 import importlib
 import sys
@@ -39,6 +40,8 @@ import time
 from urllib.parse import urlparse, quote
 from datetime import datetime, timedelta
 from zipfile import ZipFile
+
+from colorama import init, Fore
 
 if importlib.util.find_spec('pytz') is None:
     pip.main(['install', 'pytz'])
@@ -85,10 +88,12 @@ def do_register(license_document, device_id, device_name):
     try:
         status_document = get_status_document(license_document, device_id, device_name)
         if status_document['status'] != 'ready':
-            return "do_register: Status is " + status_document['status']
+            return "do_register: This epub file status is {}".format(status_document['status'])
 
-        code, response_data = request_register(status_document, device_id, device_name)
-        return eval_register_result(code, status_document, json.loads(response_data))
+        code, response_data = request_register(status_document, device_id,
+                                               device_name)
+        return eval_register_result(code, status_document,
+                                    json.loads(response_data))
     except Exception as e:
         return "Function: do_register\nMessage: " + '\n'.join(traceback.format_exception(Exception, e, None))
 
@@ -129,15 +134,18 @@ def eval_register_result(http_code, old_status_document, response_value):
     """
     if http_code == 200:
         result_message = "Server response is 200"
-        new_updated_status_time = convert_time_to_utc(response_value['updated']['status'])
-        old_updated_status_time = convert_time_to_utc(old_status_document['updated']['status'])
+        old_updated_status_time = convert_time_to_utc(
+            old_status_document['updated']['status'])
+        new_updated_status_time = convert_time_to_utc(
+            response_value['updated']['status'])
 
-        if response_value['status'] != 'active' or new_updated_status_time <= old_updated_status_time:
+        if response_value['status'] != 'active' \
+                or new_updated_status_time <= old_updated_status_time:
             result_message += "\nWrong response received."
 
         return result_message
     elif http_code == 400 or http_code >= 500 or http_code < 600:
-        return "Server response is " + str(http_code) + "\n" + response_value['type'] + '\n' + response_value['title']
+        return "Server response is {}\n{}\n{}".format(str(http_code), response_value['type'], response_value['title'])
     else:
         return "Unknown response code."
 
@@ -157,21 +165,24 @@ def do_renew(license_document, end_date, device_id, device_name):
         status_document = get_status_document(license_document, device_id, device_name)
         if status_document['status'] != 'active':
             return "do_renew: License is not registration."
-        # check validation using exception handler
+        # check validation of end_date format using exception handler
         convert_time_to_utc(end_date)
         # Need to wait for different timestamp between old status document(//updated/status/) and new one(same path)
         time.sleep(1)
 
-        http_code, result = request_renew(status_document, end_date, device_id=device_id, device_name=device_name)
+        http_code, result = request_renew(status_document, end_date,
+                                          device_id=device_id,
+                                          device_name=device_name)
         json_resp_data = json.loads(result)
 
-        if 'status' in json_resp_data.keys():
+        if "type" not in json_resp_data:
             new_lic_str = request_license_document(json_resp_data)
             new_license = json.loads(new_lic_str)
         else:
-            new_license = ""
+            new_license = dict()
 
-        return eval_renew_result(http_code, json_resp_data, status_document, new_license, license_document, end_date)
+        return eval_renew_result(http_code, json_resp_data, status_document,
+                                 new_license, license_document, end_date)
 
     except Exception as e:
         return "Function: do_renew\nMessage: " + '\n'.join(traceback.format_exception(Exception, e, None))
@@ -198,7 +209,8 @@ def request_renew(status_document, end_date, device_id, device_name):
         if 'type' in renew and renew['type'] == "application/vnd.readium.lcp.license-1.0+json":
             renew_link = renew['href']
 
-    renew_link = generate_query(renew_link, device_id=device_id, device_name=device_name,
+    renew_link = generate_query(renew_link, device_id=device_id,
+                                device_name=device_name,
                                 end_date=quote(end_date))
     method = 'PUT'
     url = urlparse(renew_link)
@@ -209,7 +221,8 @@ def request_renew(status_document, end_date, device_id, device_name):
         return result.status, result.read().decode()
 
 
-def eval_renew_result(http_code, response_value, old_status_document, new_license_document, old_license_document,
+def eval_renew_result(http_code, response_value, old_status_document,
+                      new_license_document, old_license_document,
                       new_end_date):
     """
     Args:
@@ -238,12 +251,13 @@ def eval_renew_result(http_code, response_value, old_status_document, new_licens
         # license: check updated in license old and new
         new_license_updated = convert_time_to_utc(new_license_document['updated'])
         old_license_updated = convert_time_to_utc(old_license_document['updated'])
-        if new_license_updated <= old_license_updated or new_license_updated != new_status_updated:
+        if new_license_updated <= old_license_updated \
+                or new_license_updated != new_status_updated:
             return "License updated timestamp is not updated"
 
         return "Server response is 200"
     elif http_code >= 400 or http_code < 600:
-        return "Server response is " + str(http_code) + "\n" + response_value['type'] + '\n' + response_value['title']
+        return "Server response is {}\n{}\n{}".format(str(http_code), response_value['type'], response_value['title'])
     else:
         return "Unknown response code"
 
@@ -273,7 +287,9 @@ def do_return(license_document, device_id, device_name):
         else:
             new_license = dict()
 
-        return eval_return_result(http_code, json_resp_data, status_document, new_license, license_document)
+        return eval_return_result(http_code, json_resp_data,
+                                  status_document,
+                                  new_license, license_document)
     except Exception as e:
         return "Function: do_return\nMessage: " + '\n'.join(traceback.format_exception(Exception, e, None))
 
@@ -300,7 +316,8 @@ def request_return(status_document, device_id, device_name):
         return result.status, result.read().decode()
 
 
-def eval_return_result(http_code, response_value, old_status_document, new_license_document, old_license_document):
+def eval_return_result(http_code, response_value, old_status_document,
+                       new_license_document, old_license_document):
     """
     Args:
         http_code (int): Http status code about "request return".
@@ -314,18 +331,23 @@ def eval_return_result(http_code, response_value, old_status_document, new_licen
     """
     if http_code == 200:
         # check status in status document
-        status_ready_to_cancelled = old_status_document['status'] == 'ready' and response_value['status'] == 'cancelled'
-        status_active_to_returned = old_status_document['status'] == 'active' and response_value['status'] == 'returned'
+        status_ready_to_cancelled = old_status_document['status'] == 'ready' \
+                                    and response_value['status'] == 'cancelled'
+        status_active_to_returned = old_status_document['status'] == 'active' \
+                                    and response_value['status'] == 'returned'
         if not status_active_to_returned ^ status_ready_to_cancelled:
-            return "Status in status document is not valid." + \
-                   " before: " + old_status_document['status'] + " current: " + response_value['status']
+            return "Status in status document is not valid. before: {} current: {}".format(
+                old_status_document['status'], response_value['status'])
 
         # check updated license timestamp in new status and new license
         old_updated_license = convert_time_to_utc(old_license_document['updated'])
         new_updated_license = convert_time_to_utc(new_license_document['updated'])
         new_updated_license_status = convert_time_to_utc(response_value['updated']['license'])
-        if old_updated_license >= new_updated_license or new_updated_license != new_updated_license_status:
-            return "Timestamp about license updated is not updated"
+        if old_updated_license >= new_updated_license:
+            return "Timestamp about license updated in lsd is not updated"
+
+        if new_updated_license != new_updated_license_status:
+            return "Timestamp about license updated in lcp is not updated"
 
         # check updated status timestamp in old status and new status
         old_updated_status_status = convert_time_to_utc(old_status_document['updated']['status'])
@@ -335,7 +357,7 @@ def eval_return_result(http_code, response_value, old_status_document, new_licen
 
         return "Server response is 200"
     elif http_code >= 400 or http_code < 600:
-        return "Server response is " + str(http_code) + "\n" + response_value['type'] + '\n' + response_value['title']
+        return "Server response is {} \n{} \n{}".format(str(http_code), response_value['type'], response_value['title'])
     else:
         return "Unknown response code"
 
@@ -399,7 +421,8 @@ def get_license_document(epub_file_name):
             with zf.open('META-INF/license.lcpl') as license_document:
                 return json.loads(license_document.read().decode(encoding='utf-8'))
     except Exception as e:
-        return {"Function": "get_license_document", "Message": '\n'.join(traceback.format_exception(Exception, e, None))}
+        return {"Function": "get_license_document",
+                "Message": '\n'.join(traceback.format_exception(Exception, e, None))}
 
 
 def get_status_document(license_document, device_id, device_name):
@@ -426,7 +449,8 @@ def get_status_document(license_document, device_id, device_name):
         with conn.getresponse() as result:
             return json.loads(result.read().decode())
     except Exception as e:
-        return {"Function": "get_status_document", "Message": '\n'.join(traceback.format_exception(Exception, e, None))}
+        return {"Function": "get_status_document",
+                "Message": '\n'.join(traceback.format_exception(Exception, e, None))}
 
 
 def fetch_status(status_document):
@@ -442,12 +466,11 @@ def fetch_status(status_document):
     try:
         with open('json_schema_lsd.json') as schema_file:
             json_schema = json.loads(schema_file.read())
-            res = json_validate(status_document, json_schema)
+            json_validate(status_document, json_schema)
 
             return 'Syntax is correct.', True
     except exceptions.ValidationError:
         return 'Syntax is invalid.', False
-
 
 
 def generate_query(template_url, device_id=None, device_name=None, end_date=None):
@@ -482,10 +505,11 @@ def generate_query(template_url, device_id=None, device_name=None, end_date=None
     return template_url.replace(template_query, query_str[:-1])
 
 
-def run_test():
+def main():
     """
 
     """
+
     def usage():
         print("Usage: lsd_client.py [-option] [value] [Filename].epub")
         print("[option]")
@@ -502,14 +526,15 @@ def run_test():
 
     license_document = get_license_document(args["epub_file"])
     if 'Function' in license_document.keys():
-        print('Function: ' + license_document['Function'])
-        print('Message: ' + license_document['Message'])
+        print('Function: {}'.format(license_document['Function']))
+        print('Message: {}'.format(license_document['Message']))
         exit()
     status_document = get_status_document(license_document, args["dev_id"], args["dev_name"])
-    if 'status' not in status_document.keys():
-        print('Function: ' + status_document['Function'])
-        print('Message: ' + status_document['Message'])
+    if 'title' in status_document.keys():
+        print('Type: {}'.format(status_document['type']))
+        print('Title: {}'.format(status_document['title']))
         exit()
+
     res, valid = fetch_status(status_document)
 
     if args["instruction"] == 'register':
@@ -535,8 +560,9 @@ def run_test():
         res = ""
         usage()
 
-    print(res)
+    print(Fore.GREEN + res)
 
 
 if __name__ == "__main__":
-    run_test()
+    init()
+    main()

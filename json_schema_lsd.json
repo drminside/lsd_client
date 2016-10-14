@@ -11,7 +11,8 @@
 			"format": "date-time"
 		},
 		"uriString": {
-			"type": "string"
+			"type": "string",
+			"format": "uri"
 		},
 		"updatedObject": {
 			"type": "object",
@@ -24,8 +25,10 @@
 				}
 			},
 			"additionalProperties": false,
-			"required": ["license",
-			"status"]
+			"required": [
+				"license",
+				"status"
+			]
 		},
 		"linksObject": {
 			"type": "object",
@@ -37,10 +40,7 @@
 					"$ref": "#/definitions/linksPropertyObject"
 				},
 				"renew": {
-					"type": "array",
-          "minItems": 2,
-          "maxItems": 2,
-					"items": {"$ref": "#/definitions/linksPropertyObject"}
+					"$ref": "#/definitions/linksPropertyObject"
 				},
 				"return": {
 					"$ref": "#/definitions/linksPropertyObject"
@@ -50,7 +50,10 @@
 			"required": ["license"]
 		},
 		"linksPropertyObject": {
-			"type": "object",
+			"type": [
+				"object",
+				"array"
+			],
 			"properties": {
 				"href": {
 					"$ref": "#/definitions/uriString"
@@ -68,6 +71,7 @@
 					"$ref": "#/definitions/uriString"
 				}
 			},
+			"minItems": 1,
 			"additionalProperties": false,
 			"required": ["href"]
 		},
@@ -127,7 +131,8 @@
 	},
 	"additionalProperties": false,
 	"required": ["id",
-	"status",
-	"updated",
-	"links"]
+		"message",
+		"status",
+		"updated",
+		"links"]
 }
