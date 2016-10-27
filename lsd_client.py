@@ -454,7 +454,7 @@ def get_status_document(license_document, device_id, device_name):
 
 
 def fetch_status(status_document):
-    # TODO: If client needs to check a validation about status document more details, this script must be modify.
+    # TODO: If you want to follow old lsd specification, you should use "old_json_schema_lsd.json" when call open function.
     """
     Args:
         status_document (dict): Dictionary object of status document.

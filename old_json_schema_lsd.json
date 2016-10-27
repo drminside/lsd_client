@@ -1,14 +1,18 @@
 {
 	"title": "Readium LSD schema",
-
+  
 	"description": "Created by Drminside in 2016.",
-
+  
 	"type": "object",
-
+  
 	"definitions": {
 		"dateString": {
 			"type": "string",
 			"format": "date-time"
+		},
+		"uriString": {
+			"type": "string",
+			"format": "uri"
 		},
 		"updatedObject": {
 			"type": "object",
@@ -27,20 +31,32 @@
 			]
 		},
 		"linksObject": {
-			"type": "array",
-			"items": {"$ref":"#/definitions/linksPropertyObject"},
-			"additionalItems": false,
+			"type": "object",
+			"properties": {
+				"license": {
+					"$ref": "#/definitions/linksPropertyObject"
+				},
+				"register": {
+					"$ref": "#/definitions/linksPropertyObject"
+				},
+				"renew": {
+					"$ref": "#/definitions/linksPropertyObject"
+				},
+				"return": {
+					"$ref": "#/definitions/linksPropertyObject"
+				}
+			},
+			"additionalProperties": false,
 			"required": ["license"]
 		},
 		"linksPropertyObject": {
-			"type": "object",
+			"type": [
+				"object",
+				"array"
+			],
 			"properties": {
-				"rel": {
-					"type": "string"
-				},
 				"href": {
-					"type": "string",
-					"pattern": "(([a-zA-Z.+-]+:)\/{2}(([a-zA-Z0-9.]+):([a-zA-Z0-9.]+))?@?(([a-zA-Z0-9.-_]+)(?::(0-9{1,5}))?))?(\/(?:[a-zA-Z0-9.-\/+%]+)?)((?:[?]([a-zA-Z0-9=%-_.*&;]+))|{[?][a-zA-Z0-9,]*})?(?:#([a-zA-Z0-9-=,&%;\/\"'?]+)?)?"
+					"$ref": "#/definitions/uriString"
 				},
 				"title": {
 					"type": "string"
@@ -52,13 +68,12 @@
 					"type": "boolean"
 				},
 				"profile": {
-					"type": "string",
-					"format": "uri"
+					"$ref": "#/definitions/uriString"
 				}
 			},
 			"minItems": 1,
 			"additionalProperties": false,
-			"required": ["rel", "href"]
+			"required": ["href"]
 		},
 		"potentialRightsObject": {
 			"type": "object",
