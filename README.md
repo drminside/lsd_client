@@ -1,29 +1,29 @@
 # Compliance Test LSD Client for LSD server test
 ## Information
 
-###Files: 
+### Files: 
 
   - **lsd_client.py** : Script file for test 
   
   - **json_schema_lsd.json** : For check validation of Status document
 
-###Tools: 
+### Tools: 
 
   - **Python 3.5.2**(Python software Foundation, Interpreter)
   
   - **PyCharm 2016.2.2** (JetBrain, IDE)
 
-###Dependency: 
+### Dependency: 
 
   - **pytz**(MIT license), **jsonschema**(MIT license)
 
-###Prerequisites: 
+### Prerequisites: 
 
   - epub files with LSD links provided by target LCP server(The Server must provide also LSDs associated with epub files)
   
   
 
-##Detail
+## Detail
 
 This script is used for verifying if a LSD server is compliant with LSD v1.0 specification
 
